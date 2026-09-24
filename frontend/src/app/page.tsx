@@ -252,7 +252,9 @@ export default function MidnightStudioIde() {
       window.location.hostname === 'localhost' || !window.location.hostname
         ? '127.0.0.1'
         : window.location.hostname;
-    const wsUrl = `${protocol}//${host}:8000/api/v1/execute/ws`;
+    const wsUrl =
+      process.env.NEXT_PUBLIC_WS_URL ||
+      `${protocol}//${host}:8000/api/v1/execute/ws`;
 
     let sessionStderr = '';
 
@@ -465,7 +467,7 @@ export default function MidnightStudioIde() {
         expected_output: ex.output,
       }));
 
-      const resp = await axios.post('http://127.0.0.1:8000/api/v1/submissions/run', {
+      const resp = await axios.post('/api/v1/submissions/run', {
         problem_id: selectedQuestion.id,
         code: activeContent,
         language: activeLanguage,
