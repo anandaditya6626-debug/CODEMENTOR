@@ -11,9 +11,22 @@ from app.config import settings
 
 logger = logging.getLogger(__name__)
 
-# Build directory for compiled artifacts
-BUILD_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'scratch', 'bin'))
-os.makedirs(BUILD_DIR, exist_ok=True)
+import tempfile
+
+# Build directory for compiled artifacts (uses /tmp in cloud/serverless environments)
+if os.environ.get("VERCEL") or os.environ.get("AWS_LAMBDA_FUNCTION_NAME"):
+    BUILD_DIR = os.path.join(tempfile.gettempdir(), 'codementor', 'bin')
+else:
+    BUILD_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'scratch', 'bin'))
+
+try:
+    os.makedirs(BUILD_DIR, exist_ok=True)
+except OSError:
+    BUILD_DIR = os.path.join(tempfile.gettempdir(), 'codementor', 'bin')
+    try:
+        os.makedirs(BUILD_DIR, exist_ok=True)
+    except OSError:
+        pass
 
 SQL_RUNNER_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), 'sql_runner.py'))
 JDK_BIN = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'runtimes', 'jdk21', 'bin'))

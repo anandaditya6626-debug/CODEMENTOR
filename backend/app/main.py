@@ -31,12 +31,18 @@ from app.api import (
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+    # Startup: safely attempt database initialization
+    try:
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+    except Exception as e:
+        print(f"Warning: Database startup init error: {e}")
     yield
     # Shutdown
-    await engine.dispose()
+    try:
+        await engine.dispose()
+    except Exception:
+        pass
 
 app = FastAPI(
     title='CodeMentor API',
@@ -45,10 +51,16 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# CORS
+# CORS: allow configured FRONTEND_URL, local dev, and all Vercel domains
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[settings.FRONTEND_URL, 'http://localhost:3000', 'http://localhost:3001'],
+    allow_origins=[
+        settings.FRONTEND_URL,
+        'http://localhost:3000',
+        'http://localhost:3001',
+        'http://127.0.0.1:3000',
+    ],
+    allow_origin_regex=r"https://.*\.vercel\.app",
     allow_credentials=True,
     allow_methods=['*'],
     allow_headers=['*'],
@@ -77,6 +89,7 @@ async def get_topics_alias(db: AsyncSession = Depends(get_db)):
     return result.scalars().all()
 
 @app.get('/api/v1/health')
+@app.get('/health')
 async def health_check():
     return {'status': 'healthy', 'service': 'CodeMentor API'}
 
