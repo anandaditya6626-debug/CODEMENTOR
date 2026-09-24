@@ -66,29 +66,37 @@ app.add_middleware(
     allow_headers=['*'],
 )
 
-# Register all API routers
-app.include_router(execution.router, prefix='/api/v1/execute', tags=['Execution'])
-app.include_router(ai.router, prefix='/api/v1/ai', tags=['AI Mentor'])
-app.include_router(completion.router, prefix='/api/v1/completion', tags=['Completion'])
-app.include_router(replay.router, prefix='/api/v1/replay', tags=['Replay'])
-app.include_router(problems.router, prefix='/api/v1/problems', tags=['Problems'])
-app.include_router(submissions.router, prefix='/api/v1/submissions', tags=['Submissions'])
-app.include_router(auth.router, prefix='/api/v1/auth', tags=['Authentication'])
-app.include_router(users.router, prefix='/api/v1/users', tags=['Users'])
-app.include_router(learning.router, prefix='/api/v1/learning', tags=['Learning'])
-app.include_router(analytics.router, prefix='/api/v1/analytics', tags=['Analytics'])
-app.include_router(bookmarks.router, prefix='/api/v1/bookmarks', tags=['Bookmarks'])
-app.include_router(notes.router, prefix='/api/v1/notes', tags=['Notes'])
-app.include_router(social.router, prefix='/api/v1/social', tags=['Social'])
-app.include_router(admin.router, prefix='/api/v1/admin', tags=['Admin'])
+# Register all API routers under both /api/v1 and /v1 (for flexible reverse-proxy compatibility)
+_router_list = [
+    (execution.router, '/execute', ['Execution']),
+    (ai.router, '/ai', ['AI Mentor']),
+    (completion.router, '/completion', ['Completion']),
+    (replay.router, '/replay', ['Replay']),
+    (problems.router, '/problems', ['Problems']),
+    (submissions.router, '/submissions', ['Submissions']),
+    (auth.router, '/auth', ['Authentication']),
+    (users.router, '/users', ['Users']),
+    (learning.router, '/learning', ['Learning']),
+    (analytics.router, '/analytics', ['Analytics']),
+    (bookmarks.router, '/bookmarks', ['Bookmarks']),
+    (notes.router, '/notes', ['Notes']),
+    (social.router, '/social', ['Social']),
+    (admin.router, '/admin', ['Admin']),
+]
 
-# Compatibility alias for frontend /api/v1/topics
+for r, path_prefix, tags in _router_list:
+    app.include_router(r, prefix=f'/api/v1{path_prefix}', tags=tags)
+    app.include_router(r, prefix=f'/v1{path_prefix}', tags=tags)
+
+# Compatibility alias for frontend /api/v1/topics and /v1/topics
 @app.get('/api/v1/topics', tags=['Problems'])
+@app.get('/v1/topics', tags=['Problems'])
 async def get_topics_alias(db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(Topic))
     return result.scalars().all()
 
 @app.get('/api/v1/health')
+@app.get('/v1/health')
 @app.get('/health')
 async def health_check():
     return {'status': 'healthy', 'service': 'CodeMentor API'}
