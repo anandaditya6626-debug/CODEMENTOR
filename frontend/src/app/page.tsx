@@ -252,9 +252,15 @@ export default function MidnightStudioIde() {
       window.location.hostname === 'localhost' || !window.location.hostname
         ? '127.0.0.1'
         : window.location.hostname;
+    const isLocal =
+      window.location.hostname === 'localhost' ||
+      window.location.hostname === '127.0.0.1' ||
+      !window.location.hostname;
     const wsUrl =
       process.env.NEXT_PUBLIC_WS_URL ||
-      `${protocol}//${host}:8000/api/v1/execute/ws`;
+      (isLocal
+        ? `${protocol}//${host}:8000/api/v1/execute/ws`
+        : 'wss://codementor-m7lo.onrender.com/api/v1/execute/ws');
 
     let sessionStderr = '';
 
