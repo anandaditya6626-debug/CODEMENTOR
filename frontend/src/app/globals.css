@@ -1,0 +1,181 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+
+@layer base {
+  :root {
+    --background: 220 12% 7%;
+    --foreground: 210 20% 98%;
+    --card: 220 12% 10%;
+    --card-foreground: 210 20% 98%;
+    --popover: 220 12% 11%;
+    --popover-foreground: 210 20% 98%;
+    --primary: 84 81% 55%;
+    --primary-foreground: 220 14% 6%;
+    --secondary: 220 10% 14%;
+    --secondary-foreground: 210 20% 95%;
+    --muted: 220 10% 14%;
+    --muted-foreground: 220 9% 60%;
+    --accent: 84 81% 55%;
+    --accent-foreground: 220 14% 6%;
+    --destructive: 350 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --success: 142 70% 45%;
+    --success-foreground: 0 0% 100%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 220 14% 6%;
+    --border: 220 10% 16%;
+    --input: 220 10% 16%;
+    --ring: 84 81% 55%;
+    --radius: 0.375rem;
+
+    /* Semantic Hex Direct Tokens */
+    --midnight-bg: #0e1015;
+    --midnight-editor: #0b0c0f;
+    --midnight-sidebar: #13151b;
+    --midnight-surface: #181b22;
+    --midnight-hover: #20232c;
+    --midnight-border: #242833;
+    --midnight-lime: #a3e635;
+    --midnight-violet: #8b5cf6;
+  }
+
+  .dark {
+    --background: 220 12% 7%;
+    --foreground: 210 20% 98%;
+    --card: 220 12% 10%;
+    --card-foreground: 210 20% 98%;
+    --popover: 220 12% 11%;
+    --popover-foreground: 210 20% 98%;
+    --primary: 84 81% 55%;
+    --primary-foreground: 220 14% 6%;
+    --secondary: 220 10% 14%;
+    --secondary-foreground: 210 20% 95%;
+    --muted: 220 10% 14%;
+    --muted-foreground: 220 9% 60%;
+    --accent: 84 81% 55%;
+    --accent-foreground: 220 14% 6%;
+    --destructive: 350 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --success: 142 70% 45%;
+    --success-foreground: 0 0% 100%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 220 14% 6%;
+    --border: 220 10% 16%;
+    --input: 220 10% 16%;
+    --ring: 84 81% 55%;
+  }
+
+  .light {
+    --background: 210 20% 98%;
+    --foreground: 220 14% 10%;
+    --card: 0 0% 100%;
+    --card-foreground: 220 14% 10%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 220 14% 10%;
+    --primary: 142 70% 45%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 210 15% 93%;
+    --secondary-foreground: 220 14% 15%;
+    --muted: 210 15% 93%;
+    --muted-foreground: 220 9% 45%;
+    --accent: 142 70% 45%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 350 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --success: 142 70% 45%;
+    --success-foreground: 0 0% 100%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 220 14% 6%;
+    --border: 220 13% 88%;
+    --input: 220 13% 88%;
+    --ring: 142 70% 45%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+  code, pre, .font-mono {
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  }
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--muted-foreground) / 0.3);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--muted-foreground) / 0.5);
+}
+
+/* Monaco editor overrides */
+.monaco-editor {
+  border-radius: var(--radius);
+}
+.monaco-editor .overflow-guard {
+  border-radius: var(--radius);
+}
+
+/* Animation utilities */
+.animate-in {
+  animation: fade-in 0.5s ease-out;
+}
+
+/* Gradient text utility */
+.gradient-text {
+  @apply bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-blue-400;
+}
+
+/* Code Replay Active Line Highlight */
+.replay-active-line {
+  background: rgba(163, 230, 53, 0.12) !important;
+  border-left: 3px solid #a3e635 !important;
+  transition: background 0.15s ease-in-out;
+}
+
+.replay-active-glyph {
+  background: #a3e635;
+  width: 5px !important;
+  margin-left: 3px;
+  border-radius: 2px;
+  box-shadow: 0 0 6px rgba(163, 230, 53, 0.6);
+}
+
+/* Execution Error Line Highlight */
+.execution-error-line {
+  background: rgba(239, 68, 68, 0.18) !important;
+  border-left: 3px solid #ef4444 !important;
+}
+
+.execution-error-glyph {
+  background: #ef4444;
+  width: 6px !important;
+  margin-left: 3px;
+  border-radius: 3px;
+  box-shadow: 0 0 8px rgba(239, 68, 68, 0.8);
+}
+
+.execution-error-symbol {
+  text-decoration: underline wavy #ef4444 !important;
+  background: rgba(239, 68, 68, 0.25) !important;
+  border-radius: 2px;
+}
+
+
