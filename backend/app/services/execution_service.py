@@ -51,6 +51,38 @@ def get_exit_code_description(exit_code: Optional[int]) -> Optional[str]:
     return EXIT_CODE_DESCRIPTIONS.get(exit_code)
 
 
+def normalize_source_code(code: str) -> str:
+    """
+    Normalize common typographic / smart unicode characters (e.g. >= vs ≥, smart quotes)
+    that frequently get copied from web pages, slides, or documents and break compilers.
+    """
+    if not code:
+        return code
+    replacements = {
+        '≥': '>=',
+        '≤': '<=',
+        '≠': '!=',
+        '→': '->',
+        '←': '<-',
+        '⇒': '=>',
+        '“': '"',
+        '”': '"',
+        '„': '"',
+        '‘': "'",
+        '’': "'",
+        '—': '--',
+        '–': '-',
+        '…': '...',
+        '\u00a0': ' ',  # non-breaking space
+        '\u200b': '',   # zero-width space
+        '\ufeff': '',   # BOM
+    }
+    for orig, repl in replacements.items():
+        if orig in code:
+            code = code.replace(orig, repl)
+    return code
+
+
 # 14 Supported Languages with metadata, Judge0 IDs, and starter code
 LANGUAGES_CATALOG = {
     'python': {
@@ -228,8 +260,9 @@ class InteractiveExecutionSession:
         exe_ext = '.exe' if sys.platform == 'win32' else ''
         self.exe_file = os.path.join(BUILD_DIR, f'run_int_{self.uid}{exe_ext}')
 
+        normalized_code = normalize_source_code(self.code)
         with open(self.src_file, 'w', encoding='utf-8') as f:
-            f.write(self.code)
+            f.write(normalized_code)
 
         if self.language in ('c', 'cpp'):
             compiler_name = 'gcc' if self.language == 'c' else 'g++'
@@ -240,10 +273,9 @@ class InteractiveExecutionSession:
 
             compile_args = [compiler_path]
             if sys.platform == 'win32':
-                compile_args.append('-static')
-                compile_args.append('-Wl,--stack,67108864')
-                if os.path.exists(CM_IO_INIT_PATH):
-                    compile_args.extend(['-include', CM_IO_INIT_PATH])
+                compile_args.extend(['-static', '-Wl,--stack,67108864'])
+            if os.path.exists(CM_IO_INIT_PATH):
+                compile_args.extend(['-include', CM_IO_INIT_PATH])
             compile_args.extend(['-O2', self.src_file, '-o', self.exe_file])
             if self.language == 'c':
                 compile_args.append('-lm')
@@ -578,9 +610,10 @@ class ExecutionService:
         exe_ext = '.exe' if sys.platform == 'win32' else ''
         exe_file = os.path.join(BUILD_DIR, f'run_{uid}{exe_ext}')
 
+        normalized_code = normalize_source_code(code)
         try:
             with open(src_file, 'w', encoding='utf-8') as f:
-                f.write(code)
+                f.write(normalized_code)
 
             if language == 'python':
                 return await self._run_interpreted(self.python_path, ['-u', src_file], stdin, time_limit)
@@ -597,10 +630,9 @@ class ExecutionService:
                     return {'status': 'error', 'stdout': '', 'stderr': '', 'compile_output': '', 'time': None, 'memory': None, 'error': 'GCC not found on this system'}
                 compile_args = [self.gcc_path]
                 if sys.platform == 'win32':
-                    compile_args.append('-static')
-                    compile_args.append('-Wl,--stack,67108864')
-                    if os.path.exists(CM_IO_INIT_PATH):
-                        compile_args.extend(['-include', CM_IO_INIT_PATH])
+                    compile_args.extend(['-static', '-Wl,--stack,67108864'])
+                if os.path.exists(CM_IO_INIT_PATH):
+                    compile_args.extend(['-include', CM_IO_INIT_PATH])
                 compile_args.extend(['-O2', src_file, '-o', exe_file, '-lm'])
                 return await self._compile_and_run(self.gcc_path, compile_args, exe_file, stdin, time_limit)
             elif language == 'cpp':
@@ -608,10 +640,9 @@ class ExecutionService:
                     return {'status': 'error', 'stdout': '', 'stderr': '', 'compile_output': '', 'time': None, 'memory': None, 'error': 'G++ not found on this system'}
                 compile_args = [self.gpp_path]
                 if sys.platform == 'win32':
-                    compile_args.append('-static')
-                    compile_args.append('-Wl,--stack,67108864')
-                    if os.path.exists(CM_IO_INIT_PATH):
-                        compile_args.extend(['-include', CM_IO_INIT_PATH])
+                    compile_args.extend(['-static', '-Wl,--stack,67108864'])
+                if os.path.exists(CM_IO_INIT_PATH):
+                    compile_args.extend(['-include', CM_IO_INIT_PATH])
                 compile_args.extend(['-O2', src_file, '-o', exe_file])
                 return await self._compile_and_run(self.gpp_path, compile_args, exe_file, stdin, time_limit)
             elif language == 'java':

@@ -564,6 +564,9 @@ function parseCError(text: string): ParsedError | null {
     } else if (/undeclared/i.test(message) || /was not declared/i.test(message)) {
       explanation = 'A variable or function is referenced before being declared or included.';
       suggestion = 'Declare the variable before use, or add the required #include header.';
+    } else if (/stray/i.test(message) || /invalid character/i.test(message)) {
+      explanation = 'A non-standard or unicode symbol was found (e.g., smart quotes “ ”, mathematical comparisons ≥ ≤ ≠, or curly apostrophes).';
+      suggestion = 'Replace unicode symbols with standard ASCII operators (e.g. use >= instead of ≥, regular quotes " instead of “ ”, etc.).';
     }
 
     return {
