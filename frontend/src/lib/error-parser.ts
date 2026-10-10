@@ -547,34 +547,94 @@ function generateNameFix(code: string, errorLine: number, wrongName: string, cor
  * Parser for C/C++ compiler errors (GCC/Clang format).
  */
 function parseCError(text: string): ParsedError | null {
+  // Check for compilation errors first: file:line:col: error: message
   const match = text.match(/(?:^|\n)([\w./\\-]+):(\d+):(?:(\d+):)?\s+(?:fatal\s+)?error:\s*(.*)/i);
-  if (!match) return null;
+  if (match) {
+    const file = match[1];
+    const line = parseInt(match[2], 10);
+    const column = match[3] ? parseInt(match[3], 10) : undefined;
+    const message = match[4];
 
-  const file = match[1];
-  const line = parseInt(match[2], 10);
-  const column = match[3] ? parseInt(match[3], 10) : undefined;
-  const message = match[4];
+    let explanation = 'A C/C++ compilation error occurred.';
+    let suggestion = 'Check syntax and types around this line.';
 
-  let explanation = 'A C/C++ compilation error occurred.';
-  let suggestion = 'Check syntax and types around this line.';
+    if (/expected\s+[';']\s+before/i.test(message)) {
+      explanation = 'A semicolon (;) is missing before this token.';
+      suggestion = 'Add a semicolon (;) at the end of the previous statement.';
+    } else if (/undeclared/i.test(message) || /was not declared/i.test(message)) {
+      explanation = 'A variable or function is referenced before being declared or included.';
+      suggestion = 'Declare the variable before use, or add the required #include header.';
+    }
 
-  if (/expected\s+[';']\s+before/i.test(message)) {
-    explanation = 'A semicolon (;) is missing before this token.';
-    suggestion = 'Add a semicolon (;) at the end of the previous statement.';
-  } else if (/undeclared/i.test(message) || /was not declared/i.test(message)) {
-    explanation = 'A variable or function is referenced before being declared or included.';
-    suggestion = 'Declare the variable before use, or add the required #include header.';
+    return {
+      file,
+      line,
+      column,
+      errorType: 'Compilation Error',
+      message,
+      explanation,
+      suggestion,
+    };
   }
 
-  return {
-    file,
-    line,
-    column,
-    errorType: 'Compilation Error',
-    message,
-    explanation,
-    suggestion,
-  };
+  // Check for C/C++ Runtime Errors
+  const lower = text.toLowerCase();
+  if (lower.includes('segmentation fault') || lower.includes('access violation') || lower.includes('0xc0000005') || lower.includes('sigsegv')) {
+    return {
+      file: 'main.c',
+      line: 1,
+      errorType: 'Segmentation Fault (Memory Access Violation)',
+      message: 'Program crashed while trying to access invalid or unallocated memory.',
+      explanation: 'This typically happens when dereferencing a NULL or uninitialized pointer, accessing an array out-of-bounds (index >= size or negative), or using memory after it was freed.',
+      suggestion: 'Check all pointer dereferences (*ptr, ptr->val) to ensure they are not NULL, and verify all array indices (arr[i]) are within valid bounds.',
+    };
+  }
+
+  if (lower.includes('stack overflow') || lower.includes('0xc00000fd')) {
+    return {
+      file: 'main.c',
+      line: 1,
+      errorType: 'Stack Overflow',
+      message: 'The program exceeded the execution call stack limit.',
+      explanation: 'This is usually caused by infinite or excessively deep recursion without a proper base case, or by allocating huge arrays locally on the stack (e.g., int arr[1000000]).',
+      suggestion: 'Ensure your recursive function has a base condition that terminates. For large arrays or buffers, allocate them on the heap with malloc() or declare them globally.',
+    };
+  }
+
+  if (lower.includes('division by zero') || lower.includes('0xc0000094') || lower.includes('sigfpe')) {
+    return {
+      file: 'main.c',
+      line: 1,
+      errorType: 'Integer Division by Zero',
+      message: 'An integer division or modulo operation was performed with a denominator of 0.',
+      explanation: 'In C/C++, dividing by zero is undefined behavior and triggers an immediate CPU exception.',
+      suggestion: 'Add an if-check (e.g. if (denominator != 0)) before division (/) or modulo (%) operations.',
+    };
+  }
+
+  if (lower.includes('aborted') || lower.includes('sigabrt') || lower.includes('assertion')) {
+    return {
+      file: 'main.c',
+      line: 1,
+      errorType: 'Process Aborted',
+      message: 'The program called abort() or a failed assert() check.',
+      explanation: 'An assertion check failed or an unhandled critical exception triggered abort().',
+      suggestion: 'Inspect the condition inside your assert() statements or check for calls to abort().',
+    };
+  }
+
+  if (lower.includes('time limit exceeded')) {
+    return {
+      file: 'main.c',
+      line: 1,
+      errorType: 'Time Limit Exceeded',
+      message: 'Execution took longer than the allowable time limit.',
+      explanation: 'The program either entered an infinite loop (e.g., while(1) without break), or is waiting on interactive input in the terminal.',
+      suggestion: 'Check loop update conditions to ensure loops always terminate, or provide necessary input in the terminal.',
+    };
+  }
+
+  return null;
 }
 
 /**

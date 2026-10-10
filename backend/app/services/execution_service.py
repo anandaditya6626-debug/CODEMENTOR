@@ -13,23 +13,43 @@ logger = logging.getLogger(__name__)
 
 import tempfile
 
-# Build directory for compiled artifacts (uses /tmp in cloud/serverless environments)
-if os.environ.get("VERCEL") or os.environ.get("AWS_LAMBDA_FUNCTION_NAME"):
-    BUILD_DIR = os.path.join(tempfile.gettempdir(), 'codementor', 'bin')
-else:
-    BUILD_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'scratch', 'bin'))
-
+# Build directory for compiled artifacts (uses system temp directory to prevent Device Guard / policy blocks on secondary drives and ensure cross-platform compatibility)
+BUILD_DIR = os.path.join(tempfile.gettempdir(), 'codementor', 'bin')
 try:
     os.makedirs(BUILD_DIR, exist_ok=True)
 except OSError:
-    BUILD_DIR = os.path.join(tempfile.gettempdir(), 'codementor', 'bin')
-    try:
-        os.makedirs(BUILD_DIR, exist_ok=True)
-    except OSError:
-        pass
+    pass
+
 
 SQL_RUNNER_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), 'sql_runner.py'))
 JDK_BIN = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'runtimes', 'jdk21', 'bin'))
+CM_IO_INIT_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), 'cm_io_init.h'))
+
+
+def get_exit_code_description(exit_code: Optional[int]) -> Optional[str]:
+    """Provide descriptive diagnostic information for non-zero process exit codes."""
+    if exit_code is None or exit_code == 0:
+        return None
+    EXIT_CODE_DESCRIPTIONS = {
+        -1073741819: "Segmentation Fault / Access Violation (0xC0000005: Program attempted to read or write invalid memory address, dereferenced NULL pointer, or out-of-bounds array access)",
+        3221225477: "Segmentation Fault / Access Violation (0xC0000005: Program attempted to read or write invalid memory address, dereferenced NULL pointer, or out-of-bounds array access)",
+        -1073741571: "Stack Overflow (0xC00000FD: Recursion depth exceeded or stack-allocated variables too large)",
+        3221225725: "Stack Overflow (0xC00000FD: Recursion depth exceeded or stack-allocated variables too large)",
+        -1073741676: "Integer Division by Zero (0xC0000094: Attempted to divide by zero)",
+        3221225620: "Integer Division by Zero (0xC0000094: Attempted to divide by zero)",
+        -1073741675: "Integer Overflow (0xC0000095)",
+        3221225621: "Integer Overflow (0xC0000095)",
+        -1073741818: "In-Page I/O Error (0xC0000006)",
+        3221225478: "In-Page I/O Error (0xC0000006)",
+        -1073740791: "Buffer Security Check Failure / Stack Smashing (0xC0000409: Buffer overrun detected)",
+        3221226505: "Buffer Security Check Failure / Stack Smashing (0xC0000409: Buffer overrun detected)",
+        3: "Process Aborted (abort() or assert() failure)",
+        139: "Segmentation Fault (SIGSEGV: invalid memory reference)",
+        134: "Process Aborted (SIGABRT)",
+        136: "Floating Point Exception (SIGFPE: division by zero or arithmetic overflow)",
+    }
+    return EXIT_CODE_DESCRIPTIONS.get(exit_code)
+
 
 # 14 Supported Languages with metadata, Judge0 IDs, and starter code
 LANGUAGES_CATALOG = {
@@ -205,18 +225,26 @@ class InteractiveExecutionSession:
 
         ext = '.' + config['ext']
         self.src_file = os.path.join(BUILD_DIR, f'run_int_{self.uid}{ext}')
-        self.exe_file = os.path.join(BUILD_DIR, f'run_int_{self.uid}.exe')
+        exe_ext = '.exe' if sys.platform == 'win32' else ''
+        self.exe_file = os.path.join(BUILD_DIR, f'run_int_{self.uid}{exe_ext}')
 
         with open(self.src_file, 'w', encoding='utf-8') as f:
             f.write(self.code)
 
         if self.language in ('c', 'cpp'):
-            compiler = 'gcc' if self.language == 'c' else 'g++'
-            compiler_path = shutil.which(compiler)
+            compiler_name = 'gcc' if self.language == 'c' else 'g++'
+            compiler_attr = 'gcc_path' if self.language == 'c' else 'gpp_path'
+            compiler_path = getattr(execution_service, compiler_attr, None) or shutil.which(compiler_name)
             if not compiler_path:
-                return {'status': 'error', 'error': f'{compiler.upper()} compiler not found locally on this system'}
+                return {'status': 'error', 'error': f'{compiler_name.upper()} compiler not found locally on this system'}
 
-            compile_args = [compiler, '-static', '-O2', self.src_file, '-o', self.exe_file]
+            compile_args = [compiler_path]
+            if sys.platform == 'win32':
+                compile_args.append('-static')
+                compile_args.append('-Wl,--stack,67108864')
+                if os.path.exists(CM_IO_INIT_PATH):
+                    compile_args.extend(['-include', CM_IO_INIT_PATH])
+            compile_args.extend(['-O2', self.src_file, '-o', self.exe_file])
             if self.language == 'c':
                 compile_args.append('-lm')
 
@@ -235,6 +263,11 @@ class InteractiveExecutionSession:
                         'error': 'Compilation failed',
                         'exit_code': comp_proc.returncode,
                     }
+                if sys.platform != 'win32' and os.path.exists(self.exe_file):
+                    try:
+                        os.chmod(self.exe_file, 0o755)
+                    except Exception:
+                        pass
             except asyncio.TimeoutError:
                 return {
                     'status': 'compilation_error',
@@ -298,7 +331,7 @@ class InteractiveExecutionSession:
                 raise RuntimeError('Node.js not found on this system')
             cmd = [node_path, '--experimental-strip-types', self.src_file]
         elif self.language in ('c', 'cpp'):
-            cmd = ['cmd.exe', '/c', self.exe_file]
+            cmd = [self.exe_file]
         elif self.language == 'java':
             java_path = getattr(execution_service, 'java_path', None) or shutil.which('java')
             if not java_path:
@@ -315,13 +348,25 @@ class InteractiveExecutionSession:
             raise ValueError(f'Language {self.language} does not have an active local interactive runner. Please configure Judge0.')
 
         proc_env = dict(os.environ, PYTHONIOENCODING='utf-8', PYTHONUTF8='1')
-        self.proc = await asyncio.create_subprocess_exec(
-            *cmd,
-            stdin=asyncio.subprocess.PIPE,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-            env=proc_env
-        )
+        # Retry on Windows Application Control transient blocks (WinError 4551)
+        # that occur when WDAC scans a freshly-compiled executable
+        max_attempts = 35 if sys.platform == 'win32' else 1
+        for _attempt in range(max_attempts):
+            try:
+                self.proc = await asyncio.create_subprocess_exec(
+                    *cmd,
+                    stdin=asyncio.subprocess.PIPE,
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE,
+                    env=proc_env
+                )
+                break
+            except OSError as e:
+                if sys.platform == 'win32' and getattr(e, 'winerror', None) in (4551, 5, 32) and _attempt < max_attempts - 1:
+                    delay = min(0.1 + (_attempt * 0.02), 0.3)
+                    await asyncio.sleep(delay)
+                else:
+                    raise
         self.is_running = True
         self.start_time = time.perf_counter()
 
@@ -397,6 +442,31 @@ class ExecutionService:
         self.node_path = shutil.which('node')
         self.gcc_path = shutil.which('gcc')
         self.gpp_path = shutil.which('g++')
+
+        # Fallback search for GCC/G++ on Windows in standard installation directories
+        if sys.platform == 'win32':
+            if not self.gcc_path:
+                for cand in [
+                    r'C:\MinGW\bin\gcc.exe',
+                    r'C:\msys64\mingw64\bin\gcc.exe',
+                    r'C:\msys64\ucrt64\bin\gcc.exe',
+                    r'C:\TDM-GCC-64\bin\gcc.exe',
+                    r'C:\Program Files\LLVM\bin\clang.exe',
+                ]:
+                    if os.path.exists(cand):
+                        self.gcc_path = cand
+                        break
+            if not self.gpp_path:
+                for cand in [
+                    r'C:\MinGW\bin\g++.exe',
+                    r'C:\msys64\mingw64\bin\g++.exe',
+                    r'C:\msys64\ucrt64\bin\g++.exe',
+                    r'C:\TDM-GCC-64\bin\g++.exe',
+                    r'C:\Program Files\LLVM\bin\clang++.exe',
+                ]:
+                    if os.path.exists(cand):
+                        self.gpp_path = cand
+                        break
 
         # Check local portable JDK in backend/runtimes/jdk21 or system PATH
         javac_cand = os.path.join(JDK_BIN, 'javac.exe')
@@ -505,7 +575,8 @@ class ExecutionService:
 
         ext = '.' + cfg['ext']
         src_file = os.path.join(BUILD_DIR, f'run_{uid}{ext}')
-        exe_file = os.path.join(BUILD_DIR, f'run_{uid}.exe')
+        exe_ext = '.exe' if sys.platform == 'win32' else ''
+        exe_file = os.path.join(BUILD_DIR, f'run_{uid}{exe_ext}')
 
         try:
             with open(src_file, 'w', encoding='utf-8') as f:
@@ -524,11 +595,25 @@ class ExecutionService:
             elif language == 'c':
                 if not self.gcc_path:
                     return {'status': 'error', 'stdout': '', 'stderr': '', 'compile_output': '', 'time': None, 'memory': None, 'error': 'GCC not found on this system'}
-                return await self._compile_and_run('gcc', ['-static', '-O2', src_file, '-o', exe_file, '-lm'], exe_file, stdin, time_limit)
+                compile_args = [self.gcc_path]
+                if sys.platform == 'win32':
+                    compile_args.append('-static')
+                    compile_args.append('-Wl,--stack,67108864')
+                    if os.path.exists(CM_IO_INIT_PATH):
+                        compile_args.extend(['-include', CM_IO_INIT_PATH])
+                compile_args.extend(['-O2', src_file, '-o', exe_file, '-lm'])
+                return await self._compile_and_run(self.gcc_path, compile_args, exe_file, stdin, time_limit)
             elif language == 'cpp':
                 if not self.gpp_path:
                     return {'status': 'error', 'stdout': '', 'stderr': '', 'compile_output': '', 'time': None, 'memory': None, 'error': 'G++ not found on this system'}
-                return await self._compile_and_run('g++', ['-static', '-O2', src_file, '-o', exe_file], exe_file, stdin, time_limit)
+                compile_args = [self.gpp_path]
+                if sys.platform == 'win32':
+                    compile_args.append('-static')
+                    compile_args.append('-Wl,--stack,67108864')
+                    if os.path.exists(CM_IO_INIT_PATH):
+                        compile_args.extend(['-include', CM_IO_INIT_PATH])
+                compile_args.extend(['-O2', src_file, '-o', exe_file])
+                return await self._compile_and_run(self.gpp_path, compile_args, exe_file, stdin, time_limit)
             elif language == 'java':
                 if not self.javac_path or not self.java_path:
                     return {'status': 'error', 'stdout': '', 'stderr': '', 'compile_output': '', 'time': None, 'memory': None, 'error': 'Java (javac/java) is not available on this system'}
@@ -628,8 +713,9 @@ class ExecutionService:
 
     async def _compile_and_run(self, compiler: str, compile_args: list, exe_file: str, stdin: str, time_limit: float) -> dict:
         try:
+            cmd = compile_args if (compile_args and compile_args[0] == compiler) else [compiler, *compile_args]
             comp_proc = await asyncio.create_subprocess_exec(
-                compiler, *compile_args,
+                *cmd,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE
             )
@@ -655,27 +741,55 @@ class ExecutionService:
                 'time': None, 'memory': None, 'error': '', 'exit_code': comp_proc.returncode,
             }
 
+        if sys.platform != 'win32' and os.path.exists(exe_file):
+            try:
+                os.chmod(exe_file, 0o755)
+            except Exception:
+                pass
+
         t0 = time.perf_counter()
         try:
-            run_proc = await asyncio.create_subprocess_exec(
-                'cmd.exe', '/c', exe_file,
-                stdin=asyncio.subprocess.PIPE,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE
-            )
+            # Retry on Windows Application Control transient blocks (WinError 4551)
+            # that occur when WDAC scans a freshly-compiled executable
+            run_proc = None
+            max_attempts = 35 if sys.platform == 'win32' else 1
+            for _attempt in range(max_attempts):
+                try:
+                    run_proc = await asyncio.create_subprocess_exec(
+                        exe_file,
+                        stdin=asyncio.subprocess.PIPE,
+                        stdout=asyncio.subprocess.PIPE,
+                        stderr=asyncio.subprocess.PIPE
+                    )
+                    break
+                except OSError as e:
+                    if sys.platform == 'win32' and getattr(e, 'winerror', None) in (4551, 5, 32) and _attempt < max_attempts - 1:
+                        delay = min(0.1 + (_attempt * 0.02), 0.3)
+                        await asyncio.sleep(delay)
+                    else:
+                        raise
             stdout, stderr = await asyncio.wait_for(
                 run_proc.communicate(input=stdin.encode('utf-8') if stdin else b''),
                 timeout=time_limit
             )
             elapsed = time.perf_counter() - t0
             status = 'success' if run_proc.returncode == 0 else 'runtime_error'
+            stderr_text = stderr.decode('utf-8', errors='replace')
+            if run_proc.returncode != 0 and not stderr_text:
+                desc = get_exit_code_description(run_proc.returncode)
+                if desc:
+                    stderr_text = f"[Runtime Error: {desc}]\n"
+                else:
+                    stderr_text = f"[Process terminated with exit code {run_proc.returncode}]\n"
             return {
                 'status': status,
                 'stdout': stdout.decode('utf-8', errors='replace'),
-                'stderr': stderr.decode('utf-8', errors='replace'),
+                'stderr': stderr_text,
                 'compile_output': comp_err.decode('utf-8', errors='replace') if comp_err else '',
                 'time': f'{elapsed:.3f}',
-                'memory': None, 'error': '', 'exit_code': run_proc.returncode,
+                'memory': None,
+                'error': get_exit_code_description(run_proc.returncode) or ('' if run_proc.returncode == 0 else f'Process exited with code {run_proc.returncode}'),
+                'exit_code': run_proc.returncode,
             }
         except asyncio.TimeoutError:
             try:

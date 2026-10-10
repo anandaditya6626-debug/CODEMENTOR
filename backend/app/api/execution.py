@@ -5,7 +5,7 @@ import traceback
 from typing import Optional
 from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel
-from app.services.execution_service import execution_service, InteractiveExecutionSession
+from app.services.execution_service import execution_service, InteractiveExecutionSession, get_exit_code_description
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -160,10 +160,28 @@ async def websocket_execute(websocket: WebSocket):
                         elapsed = time.perf_counter() - t0
                         status = "success" if current_session.proc.returncode == 0 else "runtime_error" 
                         print(f"[WS-SERVER] Process finished, sending exit: status={status}, code={current_session.proc.returncode}", flush=True)
+
+                        error_desc = ""
+                        if current_session.proc.returncode != 0:
+                            desc = get_exit_code_description(current_session.proc.returncode)
+                            if desc:
+                                error_desc = desc
+                                await websocket.send_json({
+                                    "type": "stderr",
+                                    "data": f"\n\n[Runtime Error: {desc}]\n"
+                                })
+                            else:
+                                error_desc = f"Process terminated with exit code {current_session.proc.returncode}"
+                                await websocket.send_json({
+                                    "type": "stderr",
+                                    "data": f"\n\n[Process terminated with exit code {current_session.proc.returncode}]\n"
+                                })
+
                         await websocket.send_json({
                             "type": "exit",
                             "status": status,
                             "exit_code": current_session.proc.returncode,
+                            "error": error_desc,
                             "time": f"{elapsed:.3f}"
                         })
                     except asyncio.TimeoutError:

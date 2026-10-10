@@ -538,9 +538,32 @@ export default function MidnightStudioIde() {
         swift: 'swift',
       };
       const newName = `${base}.${extMap[lang] || 'py'}`;
-      useWorkspaceStore.getState().renameNode(activeNode.id, newName);
+      const store = useWorkspaceStore.getState();
+      store.renameNode(activeNode.id, newName);
+
+      // Replace editor content with the starter code for the new language
+      // so that compiled languages (C, C++, Java, etc.) don't receive
+      // code from the previous language and fail to compile.
+      const runtimeMeta = runtimes[lang];
+      if (runtimeMeta?.default_code) {
+        store.setFileContent(activeNode.id, runtimeMeta.default_code);
+      } else {
+        // Fallback starter codes when runtimes haven't loaded yet
+        const fallbackCode: Partial<Record<Language, string>> = {
+          python: '# Python 3\ndef main():\n    name = input("Enter your name: ")\n    print(f"Hello, {name}! Welcome to CodeMentor.")\n\nif __name__ == "__main__":\n    main()\n',
+          c: '// C (GCC)\n#include <stdio.h>\n\nint main() {\n    setvbuf(stdout, NULL, _IONBF, 0);\n    char name[64];\n    printf("Enter your name: ");\n    if (scanf("%63s", name) == 1) {\n        printf("Hello, %s! Welcome to CodeMentor.\\n", name);\n    }\n    return 0;\n}\n',
+          cpp: '// C++ (GCC)\n#include <iostream>\n#include <string>\n\nint main() {\n    std::string name;\n    std::cout << "Enter your name: ";\n    if (std::cin >> name) {\n        std::cout << "Hello, " << name << "! Welcome to CodeMentor." << std::endl;\n    }\n    return 0;\n}\n',
+          java: '// Java (OpenJDK)\nimport java.util.Scanner;\n\npublic class Main {\n    public static void main(String[] args) {\n        Scanner scanner = new Scanner(System.in);\n        System.out.print("Enter your name: ");\n        if (scanner.hasNext()) {\n            String name = scanner.next();\n            System.out.println("Hello, " + name + "! Welcome to CodeMentor.");\n        }\n    }\n}\n',
+          javascript: '// JavaScript (Node.js)\nconst readline = require("readline");\n\nconst rl = readline.createInterface({\n    input: process.stdin,\n    output: process.stdout\n});\n\nrl.question("Enter your name: ", (name) => {\n    console.log(`Hello, ${name}! Welcome to CodeMentor.`);\n    rl.close();\n});\n',
+          typescript: '// TypeScript\nconst greeting: string = "Hello, World! Welcome to CodeMentor TypeScript.";\nconsole.log(greeting);\n',
+        };
+        const fallback = fallbackCode[lang];
+        if (fallback) {
+          store.setFileContent(activeNode.id, fallback);
+        }
+      }
     },
-    [activeNode]
+    [activeNode, runtimes]
   );
 
   // Global Keyboard Shortcuts
