@@ -134,6 +134,22 @@ export default function MidnightStudioIde() {
     }
   }, [setExplorerCollapsed]);
 
+  // First-time visitor onboarding: automatically open Language Chooser modal
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const hasSeen = localStorage.getItem('codementor:has_seen_language_chooser');
+      if (!hasSeen) {
+        const timer = setTimeout(() => {
+          setLanguageChooserOpen(true);
+        }, 400);
+        return () => clearTimeout(timer);
+      }
+    } catch {
+      // ignore local storage access exceptions
+    }
+  }, [setLanguageChooserOpen]);
+
   // Auth Modal
   const [authModalOpen, setAuthModalOpen] = useState(false);
 
@@ -1134,8 +1150,16 @@ export default function MidnightStudioIde() {
       <AuthModal isOpen={authModalOpen} onClose={() => setAuthModalOpen(false)} />
       <LanguageChooserModal
         isOpen={languageChooserOpen}
-        onClose={() => setLanguageChooserOpen(false)}
+        onClose={() => {
+          try {
+            localStorage.setItem('codementor:has_seen_language_chooser', 'true');
+          } catch {}
+          setLanguageChooserOpen(false);
+        }}
         onSelect={(item: TechItem) => {
+          try {
+            localStorage.setItem('codementor:has_seen_language_chooser', 'true');
+          } catch {}
           const newId = createFile(item.filename, null, item.starterCode, item.language);
           openTab(newId);
         }}

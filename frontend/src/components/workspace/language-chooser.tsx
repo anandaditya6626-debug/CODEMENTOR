@@ -1149,7 +1149,7 @@ export function LanguageChooserModal({
         </button>
 
         {/* Header */}
-        <div className="px-6 pt-6 pb-4 text-center shrink-0">
+        <div className="px-6 pt-6 pb-3 text-center shrink-0">
           <h2
             className="text-xl font-bold tracking-tight"
             style={{
@@ -1160,6 +1160,9 @@ export function LanguageChooserModal({
           >
             Choose a Language to Get Started
           </h2>
+          <p className="text-xs text-zinc-400 mt-1">
+            Pick your preferred programming language, web stack, or database to begin coding
+          </p>
         </div>
 
         {/* Search */}
