@@ -15,6 +15,8 @@ import {
   FolderTree,
   Activity,
   Boxes,
+  Sparkles,
+  Plus,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useWorkspaceStore } from '@/stores/workspace-store';
@@ -64,6 +66,7 @@ export function IdeHeader({
     setReplayOpen,
     visualLogicOpen,
     setVisualLogicOpen,
+    setLanguageChooserOpen,
   } = useWorkspaceStore();
 
   const { user, isAuthenticated, logout } = useAuthStore();
@@ -141,8 +144,26 @@ export function IdeHeader({
 
           {langDropdownOpen && (
             <div className="absolute left-0 mt-1 w-64 max-h-96 overflow-y-auto py-1 bg-[#13151b] border border-[#242833] rounded shadow-2xl z-50">
+              {/* Highlighted Banner to open full Language Chooser */}
+              <button
+                type="button"
+                onClick={() => {
+                  setLangDropdownOpen(false);
+                  setLanguageChooserOpen(true);
+                }}
+                className="w-full text-left px-3 py-2 text-xs flex items-center justify-between bg-gradient-to-r from-emerald-950/60 to-[#181b22] hover:from-emerald-900/80 hover:to-[#222733] text-[#a3e635] font-medium border-b border-[#242833] transition-colors"
+              >
+                <div className="flex items-center gap-2">
+                  <Sparkles className="w-3.5 h-3.5 text-[#a3e635] shrink-0" />
+                  <span>Choose Language / Stack...</span>
+                </div>
+                <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#a3e635]/15 text-[#a3e635] font-mono border border-[#a3e635]/30">
+                  50+ Stacks
+                </span>
+              </button>
+
               <div className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-zinc-500 border-b border-[#242833]">
-                Programming Languages
+                Quick Switch
               </div>
               {LANGUAGES.map((langItem) => {
                 const rMeta = runtimes[langItem.value];
@@ -177,6 +198,17 @@ export function IdeHeader({
             </div>
           )}
         </div>
+
+        {/* Quick Choose Language Button */}
+        <button
+          type="button"
+          onClick={() => setLanguageChooserOpen(true)}
+          title="Choose a Language to Get Started (50+ Languages & Frameworks)"
+          className="flex items-center gap-1.5 px-2.5 py-1 bg-[#13151b] hover:bg-[#181b22] hover:border-[#a3e635]/60 border border-[#242833] rounded text-zinc-300 hover:text-white text-xs transition-colors group"
+        >
+          <Sparkles className="w-3.5 h-3.5 text-[#a3e635] group-hover:rotate-12 transition-transform" />
+          <span className="font-medium hidden sm:inline">Languages</span>
+        </button>
 
         {/* Problems Drawer Toggle */}
         <button

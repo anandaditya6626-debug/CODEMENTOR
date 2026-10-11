@@ -16,6 +16,7 @@ import {
   FileText,
   Database,
   Terminal,
+  Sparkles,
 } from 'lucide-react';
 import { useWorkspaceStore, FileNode } from '@/stores/workspace-store';
 import { cn } from '@/lib/utils';
@@ -40,6 +41,7 @@ export function FileExplorer() {
     renameNode,
     deleteNode,
     toggleFolder,
+    setLanguageChooserOpen,
   } = useWorkspaceStore();
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -291,6 +293,14 @@ export function FileExplorer() {
         </div>
 
         <div className="flex items-center gap-0.5">
+          <button
+            type="button"
+            onClick={() => setLanguageChooserOpen(true)}
+            title="Choose Language Template (50+ Languages & Frameworks)"
+            className="p-1 text-[#a3e635] hover:text-white hover:bg-[#1e2129] rounded transition-colors"
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+          </button>
           <button
             type="button"
             onClick={() => {

@@ -18,6 +18,7 @@ import {
   ShieldAlert,
   Flame,
   User as UserIcon,
+  Sparkles,
 } from 'lucide-react';
 import { IdeHeader } from '@/components/header/ide-header';
 import { FileExplorer } from '@/components/workspace/file-explorer';
@@ -601,6 +602,16 @@ export default function MidnightStudioIde() {
         return;
       }
 
+      // Ctrl+Shift+L or Ctrl+Alt+N: Choose Language to Get Started
+      if (
+        ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'l') ||
+        ((e.ctrlKey || e.metaKey) && e.altKey && e.key.toLowerCase() === 'n')
+      ) {
+        e.preventDefault();
+        setLanguageChooserOpen(true);
+        return;
+      }
+
       // Ctrl+B: Toggle Explorer
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'b') {
         e.preventDefault();
@@ -633,12 +644,14 @@ export default function MidnightStudioIde() {
     const handleCustomRun = () => handleRun();
     const handleCustomSave = () => handleSaveActiveFile();
     const handleCustomPalette = () => setCommandPaletteOpen(true);
+    const handleCustomChooseLang = () => setLanguageChooserOpen(true);
 
     window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('codementor:run', handleCustomRun);
     window.addEventListener('codementor:save', handleCustomSave);
     window.addEventListener('codementor:commandpalette', handleCustomPalette);
     window.addEventListener('codementor:quickopen', handleCustomPalette);
+    window.addEventListener('codementor:chooselanguage', handleCustomChooseLang);
 
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
@@ -646,6 +659,7 @@ export default function MidnightStudioIde() {
       window.removeEventListener('codementor:save', handleCustomSave);
       window.removeEventListener('codementor:commandpalette', handleCustomPalette);
       window.removeEventListener('codementor:quickopen', handleCustomPalette);
+      window.removeEventListener('codementor:chooselanguage', handleCustomChooseLang);
     };
   }, [handleRun, handleSaveActiveFile, setCommandPaletteOpen, setExplorerCollapsed, setTerminalCollapsed]);
 
@@ -772,10 +786,11 @@ export default function MidnightStudioIde() {
                     <button
                       type="button"
                       onClick={() => setLanguageChooserOpen(true)}
-                      title="New File — Choose Language"
-                      className="p-1.5 text-zinc-500 hover:text-white hover:bg-[#181b22] rounded transition-colors ml-1"
+                      title="New File — Choose Language (50+ Languages & Frameworks)"
+                      className="flex items-center gap-1 px-2 py-1 text-zinc-400 hover:text-[#a3e635] hover:bg-[#181b22] border border-dashed border-[#2e3440] hover:border-[#a3e635]/50 rounded transition-colors ml-1.5 text-xs"
                     >
-                      <Plus className="w-3.5 h-3.5" />
+                      <Plus className="w-3.5 h-3.5 text-[#a3e635]" />
+                      <span className="text-[11px] font-medium hidden sm:inline text-zinc-300">New File</span>
                     </button>
 
                     {/* View Switcher: Code vs Visual Logic */}
@@ -840,8 +855,22 @@ export default function MidnightStudioIde() {
                       }}
                     />
                   ) : (
-                    <div className="h-full flex items-center justify-center text-zinc-600 text-xs">
-                      No open files. Create or open a file from the explorer on the left.
+                    <div className="h-full flex flex-col items-center justify-center text-center p-6 bg-[#0b0c0f]">
+                      <div className="w-12 h-12 rounded-2xl bg-[#181b22] border border-[#242833] flex items-center justify-center text-[#a3e635] mb-4 shadow-xl">
+                        <Sparkles className="w-6 h-6" />
+                      </div>
+                      <h3 className="text-white text-base font-semibold mb-1">No File Open</h3>
+                      <p className="text-zinc-400 text-xs max-w-sm mb-5">
+                        Choose from 50+ programming languages, web stacks, and databases with ready-to-run starter templates.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => setLanguageChooserOpen(true)}
+                        className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#a3e635] hover:bg-[#b4f044] text-black font-semibold text-xs transition-colors shadow-lg shadow-[#a3e635]/20"
+                      >
+                        <Sparkles className="w-4 h-4" />
+                        <span>Choose a Language to Get Started</span>
+                      </button>
                     </div>
                   )}
                 </div>

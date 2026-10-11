@@ -14,6 +14,7 @@ import {
   Check,
   Activity,
   Boxes,
+  Sparkles,
 } from 'lucide-react';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { useWorkspaceStore } from '@/stores/workspace-store';
@@ -55,6 +56,7 @@ export function CommandPalette({
     setSettingsOpen,
     setReplayOpen,
     setVisualLogicOpen,
+    setLanguageChooserOpen,
   } = useWorkspaceStore();
 
   const [query, setQuery] = useState('');
@@ -69,6 +71,18 @@ export function CommandPalette({
 
   const commands = useMemo<CommandItem[]>(() => {
     const list: CommandItem[] = [
+      {
+        id: 'choose-language',
+        category: 'Actions',
+        title: 'Choose a Language to Get Started...',
+        subtitle: 'Browse 50+ languages, frameworks & databases with starter templates',
+        shortcut: 'Ctrl+Shift+L',
+        icon: <Sparkles className="w-4 h-4 text-[#a3e635]" />,
+        action: () => {
+          setLanguageChooserOpen(true);
+          close();
+        },
+      },
       {
         id: 'run-code',
         category: 'Actions',
