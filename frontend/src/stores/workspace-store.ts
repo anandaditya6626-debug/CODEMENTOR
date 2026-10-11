@@ -53,6 +53,7 @@ export interface WorkspaceState {
 
   replayOpen: boolean;
   visualLogicOpen: boolean;
+  languageChooserOpen: boolean;
 
   // Actions
   createFile: (name: string, parentId?: string | null, content?: string, language?: Language) => string;
@@ -71,6 +72,7 @@ export interface WorkspaceState {
   setProblemsOpen: (open: boolean | ((prev: boolean) => boolean)) => void;
   setReplayOpen: (open: boolean | ((prev: boolean) => boolean)) => void;
   setVisualLogicOpen: (open: boolean | ((prev: boolean) => boolean)) => void;
+  setLanguageChooserOpen: (open: boolean) => void;
   setSettingsOpen: (open: boolean) => void;
   setCommandPaletteOpen: (open: boolean) => void;
   setSearchFilter: (filter: string) => void;
@@ -202,6 +204,7 @@ export const useWorkspaceStore = create<WorkspaceState>()(
       ],
       replayOpen: false,
       visualLogicOpen: false,
+      languageChooserOpen: false,
 
       createFile: (name, parentId = null, content = '', language) => {
         const id = `file-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
@@ -399,6 +402,7 @@ export const useWorkspaceStore = create<WorkspaceState>()(
       },
 
       setSettingsOpen: (settingsOpen) => set({ settingsOpen }),
+      setLanguageChooserOpen: (languageChooserOpen) => set({ languageChooserOpen }),
       setCommandPaletteOpen: (commandPaletteOpen) => set({ commandPaletteOpen }),
       setSearchFilter: (searchFilter) => set({ searchFilter }),
 

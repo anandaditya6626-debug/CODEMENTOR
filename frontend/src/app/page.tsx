@@ -23,6 +23,7 @@ import { IdeHeader } from '@/components/header/ide-header';
 import { FileExplorer } from '@/components/workspace/file-explorer';
 import { CommandPalette } from '@/components/workspace/command-palette';
 import { SettingsModal } from '@/components/workspace/settings-modal';
+import { LanguageChooserModal, TechItem } from '@/components/workspace/language-chooser';
 import { CodeEditor } from '@/components/editor/code-editor';
 import { CodeReplay } from '@/components/editor/code-replay';
 import { VisualLogic } from '@/components/editor/visual-logic';
@@ -68,6 +69,8 @@ export default function MidnightStudioIde() {
     setReplayOpen,
     visualLogicOpen,
     setVisualLogicOpen,
+    languageChooserOpen,
+    setLanguageChooserOpen,
   } = useWorkspaceStore();
 
   const { user, isAuthenticated } = useAuthStore();
@@ -768,11 +771,8 @@ export default function MidnightStudioIde() {
 
                     <button
                       type="button"
-                      onClick={() => {
-                        const newId = createFile(`file_${openTabIds.length + 1}.py`, null, '# New code file\n');
-                        openTab(newId);
-                      }}
-                      title="New File Tab"
+                      onClick={() => setLanguageChooserOpen(true)}
+                      title="New File — Choose Language"
                       className="p-1.5 text-zinc-500 hover:text-white hover:bg-[#181b22] rounded transition-colors ml-1"
                     >
                       <Plus className="w-3.5 h-3.5" />
@@ -1103,6 +1103,14 @@ export default function MidnightStudioIde() {
       />
       <SettingsModal />
       <AuthModal isOpen={authModalOpen} onClose={() => setAuthModalOpen(false)} />
+      <LanguageChooserModal
+        isOpen={languageChooserOpen}
+        onClose={() => setLanguageChooserOpen(false)}
+        onSelect={(item: TechItem) => {
+          const newId = createFile(item.filename, null, item.starterCode, item.language);
+          openTab(newId);
+        }}
+      />
     </div>
   );
 }
